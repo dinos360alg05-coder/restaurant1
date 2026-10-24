@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fbf9f5">
+  <meta name="description" content="Restaurant order management foundation">
+  <title data-i18n="home.title">Restaurant order system</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <script defer src="js/i18n.js"></script>
+</head>
+<body data-locale-scope="cashier" class="home-page">
+  <header class="site-header">
+    <div class="topbar">
+      <a class="brand" href="index.html" aria-label="Restaurant order system home">
+        <span class="brand-mark" aria-hidden="true">R</span>
+        <span data-i18n="brand">Restaurant desk</span>
+      </a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <a href="index.html" aria-current="page" data-i18n="navigation.homeTab">الرئيسية</a>
+        <a href="admin.html" data-i18n="navigation.cashierTab">لوحة الكاشير</a>
+        <a href="customer.html" data-i18n="navigation.trackerTab">تتبع الطلب</a>
+      </nav>
+      <label class="language-control">
+        <span data-i18n="language.label">Language</span>
+        <select data-language-picker aria-label="Language">
+          <option value="ar">العربية</option>
+          <option value="fr">Français</option>
+          <option value="en">English</option>
+        </select>
+      </label>
+    </div>
+  </header>
+  <main class="home-shell">
+    <section class="hero glass-panel">
+      <div class="hero-copy">
+        <p class="eyebrow" data-i18n="home.eyebrow">Restaurant operations</p>
+        <h1 data-i18n="home.heading">A calmer way to manage every order.</h1>
+        <p class="lead" data-i18n="home.intro">The foundation for a secure staff dashboard and simple customer tracking.</p>
+        <div class="phase-note" role="status">
+          <span class="status-symbol" aria-hidden="true">◷</span>
+          <span data-i18n="home.phase">Phase 1 foundation. Order actions are not connected yet.</span>
+        </div>
+      </div>
+      <div class="hero-decoration" aria-hidden="true"><span>01</span><i>✳</i></div>
+    </section>
+
+    <section class="entry-grid" aria-labelledby="entry-title">
+      <h2 id="entry-title" class="visually-hidden" data-i18n="home.choose">Choose a workspace</h2>
+      <a class="entry-card glass-panel" href="admin.html" data-card-number="01">
+        <span class="entry-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2m4 0h2m-8 4h2m4 0h2m-8 3h2m4 0h2"/></svg></span>
+        <span class="entry-kicker" data-i18n="home.staff.kicker">For restaurant staff</span>
+        <strong data-i18n="home.staff.title">Cashier dashboard</strong>
+        <span data-i18n="home.staff.description">A touch-friendly workspace for creating and managing orders.</span>
+        <span class="entry-link" data-i18n="home.open">Open workspace <span aria-hidden="true">↗</span></span>
+      </a>
+      <a class="entry-card glass-panel" href="customer.html" data-card-number="02">
+        <span class="entry-icon entry-icon-customer" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+        <span class="entry-kicker" data-i18n="home.customer.kicker">For restaurant guests</span>
+        <strong data-i18n="home.customer.title">Track an order</strong>
+        <span data-i18n="home.customer.description">A private tracking page opened from the restaurant QR code.</span>
+        <span class="entry-link" data-i18n="home.open">Open workspace <span aria-hidden="true">↗</span></span>
+      </a>
+    </section>
+
+    <footer class="page-footer"><span data-i18n="home.footer">Restaurant order tracking • Foundation preview</span></footer>
+  </main>
+</body>
+</html>

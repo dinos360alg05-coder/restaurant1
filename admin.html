@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fbf9f5">
+  <title data-i18n="admin.title">لوحة الكاشير</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <script defer src="js/i18n.js"></script>
+  <script defer src="js/config.js"></script>
+  <script defer src="js/app.js"></script>
+  <script type="module" src="js/admin.js"></script>
+</head>
+<body data-locale-scope="cashier">
+  <header class="site-header">
+    <div class="topbar">
+      <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">R</span><span data-i18n="brand">مكتب المطعم</span></a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <a href="index.html" data-i18n="navigation.homeTab">الرئيسية</a>
+        <a href="admin.html" aria-current="page" data-i18n="navigation.cashierTab">لوحة الكاشير</a>
+        <a href="customer.html" data-i18n="navigation.trackerTab">تتبع الطلب</a>
+      </nav>
+      <div class="topbar-tools">
+        <span class="environment-chip" aria-live="polite"><span class="environment-dot"></span><span data-i18n="app.checking" data-connection-status>جارٍ فحص الاتصال</span></span>
+        <label class="language-control"><span data-i18n="language.label">اللغة</span><select data-language-picker aria-label="Language"><option value="ar">العربية</option><option value="fr">Français</option><option value="en">English</option></select></label>
+      </div>
+    </div>
+  </header>
+  <main class="app-shell">
+    <section id="signin-panel" class="panel glass-panel auth-panel">
+      <p class="eyebrow" data-i18n="admin.signin.eyebrow">دخول الموظفين</p>
+      <h1 data-i18n="admin.signin.title">تسجيل الدخول إلى لوحة الكاشير</h1>
+      <p class="muted" data-i18n="admin.signin.body">استخدم الحساب الذي أنشأه مدير المطعم في Supabase.</p>
+      <form id="signin-form" class="tracking-form">
+        <label for="staff-email" data-i18n="admin.signin.email">البريد الإلكتروني</label>
+        <input id="staff-email" type="email" autocomplete="username" required>
+        <label for="staff-password" data-i18n="admin.signin.password">كلمة المرور</label>
+        <input id="staff-password" type="password" autocomplete="current-password" required>
+        <button class="button button-primary button-wide" type="submit" data-i18n="admin.signin.submit">دخول</button>
+      </form>
+      <p id="signin-message" class="form-message" role="status" aria-live="polite"></p>
+    </section>
+
+    <section id="dashboard" hidden>
+      <div class="page-heading">
+        <div><p class="eyebrow" data-i18n="admin.eyebrow">نظرة على الخدمة</p><h1 data-i18n="admin.heading">لوحة الكاشير</h1><p class="muted" data-i18n="admin.subheading">أدر طلبات اليوم من مساحة عمل واضحة.</p></div>
+        <div class="dashboard-actions"><span id="staff-email-label" class="subtle-badge"></span><button id="signout-button" class="button button-secondary" type="button" data-i18n="admin.signout">تسجيل الخروج</button><button id="new-order-button" class="button button-primary" type="button"><span aria-hidden="true">＋</span><span data-i18n="admin.newOrder">طلب جديد</span></button></div>
+      </div>
+
+      <div id="dashboard-message" class="notice notice-info" role="status" hidden></div>
+      <section class="summary-grid" aria-label="Order summary">
+        <article class="summary-card glass-panel"><span data-i18n="admin.summary.active">الطلبات النشطة</span><strong id="active-count">0</strong><small data-i18n="admin.summary.activeHint">تحت الاستلام أو التحضير أو جاهزة</small></article>
+        <article class="summary-card glass-panel"><span data-i18n="admin.summary.ready">جاهز للاستلام</span><strong id="ready-count">0</strong><small data-i18n="admin.summary.live">الحالة المباشرة تظهر هنا</small></article>
+        <article class="summary-card glass-panel"><span data-i18n="admin.summary.late">تحتاج إلى متابعة</span><strong id="late-count">0</strong><small data-i18n="admin.summary.estimate">حسب وقت التحضير المتوقع</small></article>
+      </section>
+
+      <section class="pos-workspace" aria-label="نقطة البيع">
+        <div class="menu-panel panel glass-panel">
+          <div class="panel-heading menu-heading"><div><p class="eyebrow">قائمة المطعم</p><h2>المنيو</h2><p class="muted">اختر صنفاً للطلب. الأصناف والأسعار الافتتاحية قابلة للتعديل.</p></div><button id="add-menu-item" class="button button-secondary" type="button">＋ إضافة صنف للمنيو</button></div>
+          <div id="menu-categories" class="menu-categories" aria-label="تصنيفات المنيو"></div>
+          <div id="menu-grid" class="menu-grid" aria-live="polite"></div>
+          <div id="menu-empty" class="empty-state" hidden><strong>لا توجد أصناف في هذا التصنيف</strong><p>أضف صنفاً جديداً للبدء.</p></div>
+        </div>
+
+        <aside class="cart-panel panel glass-panel" aria-label="الطلب الحالي">
+          <div class="cart-title"><div><p class="eyebrow">طلب جديد</p><h2>الطلب الحالي</h2></div><span class="cart-count" id="cart-count">0</span></div>
+          <div class="cart-customer-fields">
+            <label for="customer-name">اسم الزبون<input id="customer-name" maxlength="120" autocomplete="off" placeholder="اسم الزبون" required></label>
+            <label for="service-type">نوع الطلب<select id="service-type"><option value="dine_in">محلي</option><option value="takeaway">سفري</option></select></label>
+            <label id="table-field" for="table-number">رقم الطاولة<input id="table-number" type="number" min="1" max="999" inputmode="numeric" placeholder="مثال: 4"></label>
+          </div>
+          <div id="cart-empty" class="cart-empty">لم تتم إضافة أصناف بعد</div>
+          <ul id="cart-items" class="cart-items"></ul>
+          <div class="cart-total-row"><span>المجموع</span><strong id="cart-total">0 دج</strong></div>
+          <label class="cart-notes-label" for="cart-notes">ملاحظة للمطبخ <span>(اختياري)</span></label>
+          <textarea id="cart-notes" rows="2" maxlength="2000" placeholder="مثال: بدون بصل"></textarea>
+          <div class="cart-prep"><span>وقت التحضير المتوقع</span><div class="prep-control"><button id="prep-minus" class="button button-secondary" type="button" aria-label="إنقاص خمس دقائق">−</button><output id="prep-value">15</output><span>دقيقة</span><button id="prep-plus" class="button button-secondary" type="button" aria-label="زيادة خمس دقائق">＋</button></div></div>
+          <p id="order-form-message" class="form-message" role="status" aria-live="polite"></p>
+          <button id="submit-order" class="button button-primary button-wide cart-submit" type="button">تأكيد الطلب وإرساله للمطبخ</button>
+        </aside>
+      </section>
+
+      <section class="panel glass-panel order-panel">
+        <div class="panel-heading"><div><p class="eyebrow" data-i18n="admin.orders.eyebrow">قائمة الطلبات</p><h2 data-i18n="admin.orders.title">الطلبات</h2></div><div class="order-filters"><label class="visually-hidden" for="order-filter" data-i18n="admin.filter">تصفية الطلبات</label><select id="order-filter"><option value="active" data-i18n="admin.filter.active">النشطة</option><option value="all" data-i18n="admin.filter.all">كل طلبات اليوم</option><option value="received" data-i18n="status.received">تم الاستلام</option><option value="preparing" data-i18n="status.preparing">قيد التحضير</option><option value="ready" data-i18n="status.ready">جاهز للاستلام</option><option value="delivered" data-i18n="status.delivered">تم التسليم</option><option value="cancelled" data-i18n="status.cancelled">ملغي</option></select><span id="today-label" class="subtle-badge"></span><button id="clear-orders-button" class="button button-danger" type="button" data-i18n="admin.clearOrders.button">مسح الطلبات</button></div></div>
+        <div id="orders-list" class="orders-list" aria-live="polite"></div>
+        <div id="orders-empty" class="empty-state"><span class="empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></svg></span><strong data-i18n="admin.orders.emptyTitle">لا توجد طلبات بعد</strong><p data-i18n="admin.orders.emptyBody">أنشئ طلباً جديداً ليظهر هنا.</p></div>
+      </section>
+    </section>
+
+    <dialog id="clear-orders-dialog" class="order-dialog clear-orders-dialog" aria-labelledby="clear-orders-title">
+      <form id="clear-orders-form" method="dialog">
+        <div class="panel-heading"><div><p class="eyebrow" data-i18n="admin.clearOrders.eyebrow">تأكيد المسح</p><h2 id="clear-orders-title" data-i18n="admin.clearOrders.title">مسح جميع الطلبات؟</h2></div></div>
+        <p class="clear-orders-warning" data-i18n="admin.clearOrders.warning">سيتم حذف جميع الطلبات المحفوظة نهائيًا، بما فيها الطلبات النشطة والسابقة. ستُلغى رموز تتبعها ويبدأ ترقيم الطلبات من جديد. لا يمكن التراجع عن هذه العملية.</p>
+        <p id="clear-orders-message" class="form-message" role="status" aria-live="polite" hidden></p>
+        <div class="dialog-actions"><button id="cancel-clear-orders" class="button button-secondary" type="submit" value="cancel" data-i18n="admin.clearOrders.cancel">إلغاء</button><button id="confirm-clear-orders" class="button button-danger" type="button" data-i18n="admin.clearOrders.confirm">نعم، امسح جميع الطلبات</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="menu-item-dialog" class="order-dialog menu-item-dialog">
+      <form id="menu-item-form">
+        <div class="panel-heading"><div><p class="eyebrow">إدارة المنيو</p><h2 id="menu-dialog-title">إضافة صنف جديد</h2></div><button id="close-menu-dialog" class="icon-button" type="button" aria-label="إغلاق">×</button></div>
+        <label for="menu-name">اسم الصنف<input id="menu-name" maxlength="120" required></label>
+        <label for="menu-description">وصف مختصر<input id="menu-description" maxlength="240" placeholder="وصف يظهر تحت الاسم"></label>
+        <div class="menu-form-row"><label for="menu-price">السعر (دج)<input id="menu-price" type="number" min="0.01" max="10000000" step="0.01" required></label><label for="menu-category">التصنيف<select id="menu-category"><option value="main">أطباق رئيسية</option><option value="salad">سلطات</option><option value="soup">شوربات</option><option value="dessert">حلويات</option><option value="drink">مشروبات</option><option value="other">أخرى</option></select></label></div>
+        <label for="menu-image-file">صورة من جهازك (اختياري)<input id="menu-image-file" class="menu-file-input" type="file" accept="image/jpeg,image/png,image/webp,image/avif"><small class="image-url-help">يمكنك اختيار صورة من جهازك، أو استخدام رابط مشاركة عام من Google Drive بالأسفل.</small></label>
+        <label for="menu-image">رابط الصورة أو Google Drive<input id="menu-image" type="url" maxlength="1000" placeholder="https://drive.google.com/file/d/..."><small class="image-url-help">لـ Google Drive اجعل الوصول «أي شخص لديه الرابط». ستظهر المعاينة قبل الحفظ.</small></label>
+        <div id="menu-image-preview" class="menu-image-preview" hidden><img id="menu-image-preview-img" alt="معاينة صورة الصنف" referrerpolicy="no-referrer"><span id="menu-image-preview-error" hidden>تعذر تحميل الصورة. تأكد أن الرابط مباشر ومتاح للعامة.</span></div>
+        <label class="menu-available"><input id="menu-available" type="checkbox" checked> الصنف متاح للطلب</label>
+        <p id="menu-form-message" class="form-message" role="status" aria-live="polite"></p>
+        <div class="dialog-actions"><button id="cancel-menu-dialog" class="button button-secondary" type="button">إلغاء</button><button id="save-menu-item" class="button button-primary" type="submit">حفظ الصنف</button></div>
+      </form>
+    </dialog>
+
+    <section id="receipt" class="receipt-print" hidden aria-hidden="true"></section>
+    <footer class="page-footer"><a href="index.html" data-i18n="navigation.home">العودة إلى الصفحة الرئيسية</a><span data-i18n="home.footer">تتبّع طلبات المطعم</span></footer>
+  </main>
+</body>
+</html>

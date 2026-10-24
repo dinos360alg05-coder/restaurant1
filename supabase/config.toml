@@ -1,0 +1,16 @@
+project_id = "restaurant-order-tracking"
+
+[functions.create-order]
+verify_jwt = true
+
+[functions.transition-order]
+verify_jwt = true
+
+[functions.verify-order]
+verify_jwt = true
+
+[functions.get-tracking]
+verify_jwt = true
+
+[functions.clear-orders]
+verify_jwt = true

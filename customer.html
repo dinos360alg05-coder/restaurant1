@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fbf9f5">
+  <meta name="description" content="Privately check the status of a restaurant order">
+  <title data-i18n="customer.title">تتبّع طلبك</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <script defer src="js/i18n.js"></script>
+  <script src="js/config.js"></script>
+  <script type="module" src="js/customer.js"></script>
+</head>
+<body data-locale-scope="customer" class="customer-page">
+  <header class="site-header">
+    <div class="topbar">
+      <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">R</span><span data-i18n="brand">مكتب المطعم</span></a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <a href="index.html" data-i18n="navigation.homeTab">الرئيسية</a>
+        <a href="admin.html" data-i18n="navigation.cashierTab">لوحة الكاشير</a>
+        <a href="customer.html" aria-current="page" data-i18n="navigation.trackerTab">تتبع الطلب</a>
+      </nav>
+      <label class="language-control"><span data-i18n="language.label">اللغة</span><select data-language-picker aria-label="Language"><option value="ar">العربية</option><option value="fr">Français</option><option value="en">English</option></select></label>
+    </div>
+  </header>
+  <main class="customer-shell">
+    <section class="tracking-card glass-panel">
+      <div class="tracking-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7.5"/><path d="m16.5 16.5 4 4M11 7.5v4l2.5 1.5"/></svg></div>
+      <p class="eyebrow" data-i18n="customer.eyebrow">تتبّع الطلبات</p>
+      <h1 data-i18n="customer.heading">تفاصيل طلبك في مكان واحد.</h1>
+      <p class="muted" data-i18n="customer.intro">أدخل رقم الطلب ورمز الوصول المكوّن من ستة أرقام والموجودين على الإيصال.</p>
+
+      <div class="notice notice-info" role="note"><span class="notice-icon" aria-hidden="true">ⓘ</span><p data-i18n="customer.foundation">بيانات الطلب محمية. أدخل الرقم والرمز المطبوعين على الإيصال.</p></div>
+      <p class="form-message" id="customer-message" role="status" aria-live="polite" hidden></p>
+
+      <form class="tracking-form" id="tracking-form" aria-describedby="tracking-help">
+        <label for="order-number" data-i18n="customer.orderNumber">رقم الطلب</label>
+        <input id="order-number" name="order_number" type="text" inputmode="numeric" autocomplete="off" placeholder="042" maxlength="3" pattern="[0-9]{1,3}" required>
+        <label for="access-code" data-i18n="customer.accessCode">رمز الوصول المكوّن من ستة أرقام</label>
+        <input id="access-code" name="access_code" type="password" inputmode="numeric" autocomplete="one-time-code" placeholder="••••••" maxlength="6" pattern="[0-9]{6}" required>
+        <p id="tracking-help" class="field-help" data-i18n="customer.codeHelp">التفاصيل مطبوعة على الإيصال. احتفظ برمز الوصول لنفسك.</p>
+        <button class="button button-primary button-wide" type="submit" data-i18n="customer.checkStatus">تحقق من حالة الطلب</button>
+      </form>
+
+      <section id="tracking-result" class="tracking-result" aria-labelledby="result-heading" hidden>
+        <div id="ready-notice" class="notice notice-ready" role="status" hidden><span aria-hidden="true">✓</span><p data-i18n="customer.readyNotice">طلبك جاهز للاستلام.</p><button type="button" id="stop-ready-alarm" class="button button-secondary ready-alarm-stop" data-i18n="customer.stopAlarm" hidden>إيقاف الرنين</button></div>
+        <div class="tracking-result-heading">
+          <div><p class="eyebrow" data-i18n="customer.resultLabel">طلبك</p><h2 id="result-heading"><span data-i18n="customer.orderNumber">رقم الطلب</span> <strong id="result-order-number">—</strong></h2></div>
+          <span class="status-pill" id="result-status"></span>
+        </div>
+        <p class="tracking-live-label"><span class="live-dot" aria-hidden="true"></span><span data-i18n="customer.liveUpdates">يتم تحديث الحالة تلقائياً</span></p>
+        <button type="button" id="enable-ready-sound" class="button button-secondary sound-alert-button">تفعيل تنبيه الجاهزية الصوتي</button>
+        <p id="terminal-message" class="notice" hidden></p>
+        <ol class="tracking-steps" id="tracking-steps" aria-label="Order progress">
+          <li data-step="received"><span class="step-icon" aria-hidden="true">1</span><span data-i18n="status.received">تم الاستلام</span></li>
+          <li data-step="preparing"><span class="step-icon" aria-hidden="true">2</span><span data-i18n="status.preparing">قيد التحضير</span></li>
+          <li data-step="ready"><span class="step-icon" aria-hidden="true">3</span><span data-i18n="status.ready">جاهز للاستلام</span></li>
+          <li data-step="delivered"><span class="step-icon" aria-hidden="true">4</span><span data-i18n="status.delivered">تم التسليم</span></li>
+        </ol>
+        <div class="tracking-details">
+          <h3 data-i18n="customer.items">الأصناف</h3>
+          <ul id="result-items" class="order-items"></ul>
+          <dl class="tracking-meta">
+            <div><dt data-i18n="customer.prepEstimate">وقت التحضير المتوقع</dt><dd><span id="result-prep">—</span> <span data-i18n="receipt.minutes">دقيقة</span></dd></div>
+            <div><dt data-i18n="customer.readyEstimate">موعد الجاهزية المتوقع</dt><dd id="result-ready-at">—</dd></div>
+            <div><dt data-i18n="customer.lastUpdated">آخر تحديث</dt><dd id="result-updated-at">—</dd></div>
+          </dl>
+        </div>
+        <div class="tracking-actions">
+          <button type="button" id="refresh-tracking" class="button button-secondary" data-i18n="customer.refresh">تحديث الآن</button>
+          <button type="button" id="track-another" class="button button-secondary" data-i18n="customer.trackAnother">تتبّع طلباً آخر</button>
+        </div>
+      </section>
+
+      <p class="privacy-note"><span aria-hidden="true">◇</span><span data-i18n="customer.privacy">لن تظهر تفاصيل الطلب إلا بعد التحقق الآمن.</span></p>
+    </section>
+    <footer class="page-footer"><a href="index.html" data-i18n="navigation.home">العودة إلى الصفحة الرئيسية</a><span data-i18n="customer.footer">تتبّع طلبات المطعم</span></footer>
+  </main>
+</body>
+</html>
