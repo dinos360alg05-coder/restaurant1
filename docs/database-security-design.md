@@ -1,6 +1,6 @@
 # Database and security design (Phase 1)
 
-This document records the planned design. The Supabase project has not been configured, and no SQL has been applied in this phase. Phase 2 will turn this plan into ordered, repeatable SQL migrations and test the policies against distinct Auth roles.
+This document records the database and security design implemented by the ordered Supabase migrations. Apply the migrations to the project before deploying the matching Edge Functions.
 
 ## Data model
 
@@ -9,7 +9,7 @@ All identifiers are UUIDs except the human-readable order number. Store timestam
 | Table | Purpose and key rules |
 | --- | --- |
 | `restaurant_settings` | One protected row: restaurant display name, time zone, business-day cutoff (default `04:00`), and settings version. Validate the zone and cutoff. |
-| `staff_members` | Trusted authorization map from `auth.users.id` to active staff; records are inserted manually by an administrator using a trusted SQL session. Login alone never grants staff access. |
+| `staff_members` | Trusted authorization map from `auth.users.id` to active staff, with an admin flag, display name, and last-seen heartbeat. Login alone never grants staff access. |
 | `daily_order_counters` | One row per `business_date`; transactionally allocate numbers 1–999, unique by business date. If the daily limit is reached, fail clearly instead of reusing a number. |
 | `orders` | UUID primary key, business date, short order number, status, notes, estimated preparation minutes, estimated ready time, timestamps, and a tracking-code version. Unique `(business_date, order_number)`. Status constrained to `received`, `preparing`, `ready`, `delivered`, `cancelled`. |
 | `order_items` | UUID primary key, order FK with `ON DELETE CASCADE`, free-text item name, positive bounded quantity, and display position. No customer names or contact fields are needed for this workflow. |
@@ -28,7 +28,7 @@ At cutoff, older unfinished orders remain visible to authorized staff but become
 
 ## Authentication, authorization, and RLS
 
-- Disable public staff sign-up. Create staff Auth accounts manually and separately insert their IDs into `staff_members` from a trusted administrator session.
+- Disable public staff sign-up. The admin-only `manage-staff` Edge Function creates Auth accounts and inserts staff authorization records; the first admin is bootstrapped once from a trusted SQL session.
 - Enable RLS on every exposed table, including tables in any schema reachable through the Data API. Revoke unnecessary table privileges as well as writing restrictive policies.
 - Customers may use Supabase anonymous Auth, but receive no direct `SELECT`, `INSERT`, `UPDATE`, or `DELETE` rights on orders, items, verification secrets, grants, attempts, maintenance logs, or staff records.
 - A narrowly scoped `is_staff()` helper may be `SECURITY DEFINER`; pin its `search_path`, schema-qualify referenced objects, revoke public execution, and base its answer only on the protected `staff_members` table. Test for recursion and privilege escalation.

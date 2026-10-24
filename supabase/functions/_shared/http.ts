@@ -61,10 +61,19 @@ export async function requireStaff(request: Request): Promise<{ user: User; admi
   return { user, admin };
 }
 
+export async function requireAdmin(request: Request): Promise<{ user: User; admin: ReturnType<typeof serviceClient> }> {
+  const context = await requireStaff(request);
+  const { data: staff, error } = await context.admin.from("staff_members")
+    .select("is_admin").eq("user_id", context.user.id).maybeSingle();
+  if (error || !staff?.is_admin) throw new Error("admin_authorization_required");
+  return context;
+}
+
 export function errorResponse(error: unknown): Response {
   const message = error instanceof Error ? error.message : "request_failed";
   if (message === "unauthorized") return json({ error: "sign_in_required" }, 401);
   if (message === "staff_authorization_required") return json({ error: "staff_access_required" }, 403);
+  if (message === "admin_authorization_required") return json({ error: "admin_access_required" }, 403);
   if (message === "server_configuration_missing") return json({ error: "server_configuration_missing" }, 500);
   const maybeError = error as { code?: unknown; name?: unknown; message?: unknown };
   const rawCode = typeof maybeError?.code === "string" ? maybeError.code : "unknown";

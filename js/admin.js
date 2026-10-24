@@ -4,6 +4,9 @@ const config = window.RESTAURANT_CONFIG;
 const supabase = createClient(config.supabaseUrl, config.supabasePublishableKey, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
+const adminSupabase = createClient(config.supabaseUrl, config.supabasePublishableKey, {
+  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: "restaurant-admin-only-session" }
+});
 const $ = (selector) => document.querySelector(selector);
 const list = $("#orders-list");
 const menuDialog = $("#menu-item-dialog");
@@ -23,6 +26,10 @@ let editingMenuItemId = null;
 let recentlyCreatedOrderId = null;
 let pendingImageFile = null;
 let imagePreviewObjectUrl = null;
+let receiptPrintInProgress = false;
+let presenceTimer = null;
+let staffRefreshTimer = null;
+let adminPresenceTimer = null;
 
 const t = (key) => window.restaurantTranslate?.(key) || key;
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -62,6 +69,9 @@ async function functionErrorMessage(error, fallbackKey) {
       const body = await response.clone().json();
       const translations = {
         server_configuration_missing: "admin.error.secret", staff_access_required: "admin.error.staff",
+        admin_access_required: "admin.error.staff",
+        cannot_disable_last_admin: "staff.lastAdmin", cannot_change_own_access: "staff.selfChange",
+        staff_not_found: "staff.notFound",
         sign_in_required: "admin.error.signin", invalid_order: "admin.error.invalidOrder",
         invalid_order_items: "admin.error.invalidItems", invalid_status_transition: "admin.error.transition",
         order_unavailable: "admin.error.unavailable", request_failed: "admin.error.server",
@@ -76,6 +86,68 @@ async function functionErrorMessage(error, fallbackKey) {
   return error?.message || t(fallbackKey);
 }
 
+function renderStaff(staff) {
+  const container = $("#staff-list");
+  if (!staff.length) {
+    container.innerHTML = `<div class="empty-state">${escapeHtml(t("staff.empty"))}</div>`;
+    return;
+  }
+  container.innerHTML = staff.map((member) => {
+    const activeText = member.active ? t("staff.active") : t("staff.inactive");
+    const onlineText = member.online ? t("staff.online") : t("staff.offline");
+    const lastSeen = member.last_seen_at ? formatTime(member.last_seen_at) : "—";
+    const control = member.is_self ? `<span class="subtle-badge">${escapeHtml(t("staff.you"))}</span>`
+      : `<button class="button ${member.active ? "button-danger" : "button-secondary"}" type="button" data-staff-toggle="${escapeHtml(member.user_id)}" data-next-active="${!member.active}">${escapeHtml(t(member.active ? "staff.disable" : "staff.enable"))}</button>`;
+    return `<article class="staff-row"><div class="staff-identity"><strong>${escapeHtml(member.display_name || member.email || "Staff")}${member.is_admin ? ` <span class="subtle-badge">${escapeHtml(t("staff.admin"))}</span>` : ""}</strong><span>${escapeHtml(member.email || "")}</span></div><span class="staff-state ${member.active ? "is-active" : ""}">${escapeHtml(activeText)}</span><span class="staff-state ${member.online ? "is-online" : ""}" title="${escapeHtml(lastSeen)}">${escapeHtml(onlineText)}</span>${control}</article>`;
+  }).join("");
+}
+
+async function loadStaff({ quiet = false } = {}) {
+  if (!quiet) showMessage($("#staff-message"), t("staff.loading"));
+  const { data, error } = await adminSupabase.functions.invoke("manage-staff", { body: { action: "list" } });
+  if (!adminAccessDialog.open) return false;
+  if (error || data?.error) {
+    const status = error?.context instanceof Response ? error.context.status : 0;
+    if (status === 401 || status === 403 || data?.error === "admin_access_required") {
+      if (staffRefreshTimer) clearInterval(staffRefreshTimer);
+      if (adminPresenceTimer) clearInterval(adminPresenceTimer);
+      staffRefreshTimer = null;
+      adminPresenceTimer = null;
+      $("#staff-management").hidden = true;
+      $("#staff-list").replaceChildren();
+      $("#admin-access-login").hidden = false;
+      $("#admin-access-password").value = "";
+      showMessage($("#admin-access-message"), status === 403 || data?.error === "admin_access_required" ? t("staff.adminOnly") : t("staff.sessionExpired"), "error");
+      await adminSupabase.auth.signOut();
+      return false;
+    }
+    if (!quiet) {
+      const response = error?.context instanceof Response ? error.context : null;
+      let body = null;
+      try { if (response) body = await response.clone().json(); } catch (_) { /* Keep the generic setup hint. */ }
+      const detail = ["42P01", "42703", "PGRST202", "PGRST204", "PGRST205"].includes(body?.diagnostic_code)
+        ? t("staff.needMigration")
+        : error ? await functionErrorMessage(error, "staff.loadError") : t("staff.loadError");
+      if (!$("#admin-access-login").hidden) {
+        $("#staff-management").hidden = true;
+        showMessage($("#admin-access-message"), detail, "error");
+      } else {
+        $("#staff-management").hidden = false;
+        showMessage($("#staff-message"), detail, "error");
+      }
+    }
+    return false;
+  }
+  $("#staff-management").hidden = false;
+  showMessage($("#staff-message"), "");
+  renderStaff(data?.staff || []);
+  return true;
+}
+
+async function sendPresence(client = supabase) {
+  try { await client.functions.invoke("staff-presence", { body: {} }); } catch (_) { /* A later heartbeat refreshes presence. */ }
+}
+
 function orderDateLabel() {
   return new Intl.DateTimeFormat(document.documentElement.lang || "ar", { timeZone: config.timeZone || "Africa/Algiers", dateStyle: "full" }).format(new Date());
 }
@@ -84,14 +156,25 @@ function formatTime(value) {
   return new Intl.DateTimeFormat(document.documentElement.lang || "ar", { timeZone: config.timeZone || "Africa/Algiers", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
 }
 
-function openReceipt(order, code) {
+async function openReceipt(order, code) {
+  if (receiptPrintInProgress) return;
+  receiptPrintInProgress = true;
   const itemMarkup = order.items.map((item) => `<li><span>${escapeHtml(item.item_name)} × ${Number(item.quantity)}</span><b>${money(Number(item.unit_price) * Number(item.quantity))}</b></li>`).join("");
   const serviceLabel = order.service_type === "dine_in" ? `محلي • طاولة ${Number(order.table_number)}` : "سفري";
+  const trackingUrl = config.publicCustomerUrl || new URL("customer.html", location.href).href;
   const receipt = $("#receipt");
-  receipt.innerHTML = `<div class="receipt-content"><h1>${escapeHtml(config.restaurantName || "Restaurant")}</h1><p>${escapeHtml(t("receipt.heading"))}</p><hr><p>${escapeHtml(t("receipt.order"))}: <strong>${String(order.order_number).padStart(3, "0")}</strong></p><p>الزبون: ${escapeHtml(order.customer_name)}</p><p>${serviceLabel}</p><ul>${itemMarkup}</ul><p><strong>الإجمالي: ${money(order.total_amount)}</strong></p>${order.notes ? `<p>${escapeHtml(t("receipt.notes"))}: ${escapeHtml(order.notes)}</p>` : ""}<p>${escapeHtml(t("receipt.prep"))}: ${Number(order.estimated_prep_minutes)} ${escapeHtml(t("receipt.minutes"))}</p><p>${escapeHtml(t("receipt.code"))}: <strong class="receipt-code">${escapeHtml(code)}</strong></p><hr><p>${escapeHtml(t("receipt.scan"))}</p><p>${escapeHtml(location.origin + location.pathname.replace(/admin\.html$/, "customer.html"))}</p></div>`;
-  receipt.hidden = false;
-  window.print();
-  receipt.hidden = true;
+  try {
+    receipt.innerHTML = `<div class="receipt-content"><h1>${escapeHtml(config.restaurantName || "Restaurant")}</h1><p>${escapeHtml(t("receipt.heading"))}</p><hr><p>${escapeHtml(t("receipt.order"))}: <strong>${String(order.order_number).padStart(3, "0")}</strong></p><p>الزبون: ${escapeHtml(order.customer_name)}</p><p>${serviceLabel}</p><ul>${itemMarkup}</ul><p><strong>الإجمالي: ${money(order.total_amount)}</strong></p>${order.notes ? `<p>${escapeHtml(t("receipt.notes"))}: ${escapeHtml(order.notes)}</p>` : ""}<p>${escapeHtml(t("receipt.prep"))}: ${Number(order.estimated_prep_minutes)} ${escapeHtml(t("receipt.minutes"))}</p><p>${escapeHtml(t("receipt.code"))}: <strong class="receipt-code">${escapeHtml(code)}</strong></p><hr><p>${escapeHtml(t("receipt.scan"))}</p><img class="receipt-qr" src="assets/restaurant-qr.png" alt="${escapeHtml(t("receipt.qrAlt"))}"><p class="receipt-site-link"><a href="${escapeHtml(trackingUrl)}">${escapeHtml(trackingUrl)}</a></p></div>`;
+    receipt.hidden = false;
+    const qrImage = receipt.querySelector(".receipt-qr");
+    if (qrImage?.decode) {
+      try { await qrImage.decode(); } catch (_) { /* Keep the written URL if the QR image cannot load. */ }
+    }
+    window.print();
+  } finally {
+    receipt.hidden = true;
+    receiptPrintInProgress = false;
+  }
 }
 
 function renderMenu() {
@@ -190,6 +273,7 @@ async function loadMenu() {
 }
 
 async function startDashboard(user) {
+  if (presenceTimer) clearInterval(presenceTimer);
   $("#signin-panel").hidden = true;
   $("#dashboard").hidden = false;
   $("#staff-email-label").textContent = user.email || "";
@@ -206,6 +290,8 @@ async function startDashboard(user) {
     showMessage($("#dashboard-message"), `${t("admin.loadError")} ${detail}`, "error");
     window.setRestaurantConnectionStatus?.("reachable");
   }
+  await sendPresence();
+  presenceTimer = window.setInterval(sendPresence, 30_000);
   const { data: sessionData } = await supabase.auth.getSession();
   if (sessionData.session) await supabase.realtime.setAuth(sessionData.session.access_token);
   if (liveChannel) await supabase.removeChannel(liveChannel);
@@ -214,6 +300,9 @@ async function startDashboard(user) {
     .on("postgres_changes", { event: "*", schema: "public", table: "menu_items" }, () => loadMenu().catch(() => {}))
     .subscribe();
 }
+
+window.addEventListener("focus", sendPresence);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) sendPresence(); });
 
 function openMenuEditor(item = null) {
   editingMenuItemId = item?.id || null;
@@ -267,12 +356,130 @@ $("#signin-form").addEventListener("submit", async (event) => {
 });
 
 $("#signout-button").addEventListener("click", async () => {
+  if (presenceTimer) clearInterval(presenceTimer);
+  presenceTimer = null;
   if (liveChannel) await supabase.removeChannel(liveChannel);
   await supabase.auth.signOut();
   window.setRestaurantConnectionStatus?.("reachable");
   $("#dashboard").hidden = true;
   $("#signin-panel").hidden = false;
   showMessage($("#signin-message"), t("admin.signout.done"));
+});
+
+const staffDialog = $("#staff-dialog");
+const adminAccessDialog = $("#admin-access-dialog");
+$("#admin-portal-button").addEventListener("click", () => {
+  $("#admin-access-login").hidden = false;
+  $("#staff-management").hidden = true;
+  showMessage($("#admin-access-message"), "");
+  adminAccessDialog.showModal();
+  $("#admin-access-email").focus();
+});
+$("#close-admin-access").addEventListener("click", () => adminAccessDialog.close());
+$("#close-staff-panel").addEventListener("click", () => adminAccessDialog.close());
+adminAccessDialog.addEventListener("close", async () => {
+  if (staffRefreshTimer) clearInterval(staffRefreshTimer);
+  if (adminPresenceTimer) clearInterval(adminPresenceTimer);
+  staffRefreshTimer = null;
+  adminPresenceTimer = null;
+  await adminSupabase.auth.signOut();
+  $("#staff-management").hidden = true;
+  $("#admin-access-login").hidden = false;
+  $("#staff-list").replaceChildren();
+  $("#admin-access-form").reset();
+  showMessage($("#admin-access-message"), "");
+  showMessage($("#staff-message"), "");
+});
+$("#admin-access-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const button = $("#submit-admin-access");
+  button.disabled = true;
+  button.textContent = t("staff.working");
+  showMessage($("#admin-access-message"), "");
+  const { error: signInError } = await adminSupabase.auth.signInWithPassword({
+    email: $("#admin-access-email").value.trim(), password: $("#admin-access-password").value,
+  });
+  if (!adminAccessDialog.open) {
+    await adminSupabase.auth.signOut();
+    return;
+  }
+  if (signInError) {
+    button.disabled = false;
+    button.textContent = t("staff.login");
+    $("#admin-access-password").value = "";
+    return showMessage($("#admin-access-message"), t("staff.loginError"), "error");
+  }
+  const allowed = await loadStaff();
+  button.disabled = false;
+  button.textContent = t("staff.login");
+  if (!allowed) {
+    await adminSupabase.auth.signOut();
+    $("#staff-management").hidden = true;
+    $("#admin-access-login").hidden = false;
+    if (!$("#admin-access-message").textContent) showMessage($("#admin-access-message"), t("staff.adminOnly"), "error");
+    return;
+  }
+  $("#admin-access-password").value = "";
+  $("#admin-access-login").hidden = true;
+  await sendPresence(adminSupabase);
+  adminPresenceTimer = window.setInterval(() => sendPresence(adminSupabase), 30_000);
+  staffRefreshTimer = window.setInterval(() => loadStaff({ quiet: true }), 20_000);
+});
+$("#add-staff").addEventListener("click", () => {
+  $("#staff-form").reset();
+  showMessage($("#staff-form-message"), "");
+  staffDialog.showModal();
+});
+$("#close-staff-dialog").addEventListener("click", () => staffDialog.close());
+$("#cancel-staff-dialog").addEventListener("click", () => staffDialog.close());
+$("#refresh-staff").addEventListener("click", () => loadStaff());
+
+$("#staff-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const button = $("#save-staff");
+  button.disabled = true;
+  button.textContent = t("staff.dialog.working");
+  showMessage($("#staff-form-message"), t("staff.dialog.working"));
+  const { data, error } = await adminSupabase.functions.invoke("manage-staff", {
+    body: {
+      action: "create",
+      display_name: $("#staff-display-name").value.trim(),
+      email: $("#staff-new-email").value.trim(),
+      password: $("#staff-new-password").value,
+    },
+  });
+  if (!adminAccessDialog.open) return;
+  button.disabled = false;
+  button.textContent = t("staff.dialog.submit");
+  if (error || data?.error) {
+    const message = error ? await functionErrorMessage(error, "staff.createError") : t("staff.createError");
+    return showMessage($("#staff-form-message"), message, "error");
+  }
+  $("#staff-new-password").value = "";
+  staffDialog.close();
+  await loadStaff();
+  showMessage($("#dashboard-message"), t("staff.created"), "success");
+});
+
+$("#staff-list").addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-staff-toggle]");
+  if (!button) return;
+  const nextActive = button.dataset.nextActive === "true";
+  if (!window.confirm(t(nextActive ? "staff.confirmEnable" : "staff.confirmDisable"))) return;
+  button.disabled = true;
+  const { data, error } = await adminSupabase.functions.invoke("manage-staff", {
+    body: { action: "set_active", user_id: button.dataset.staffToggle, active: nextActive },
+  });
+  if (!adminAccessDialog.open) return;
+  if (error || data?.error) {
+    button.disabled = false;
+    const message = error ? await functionErrorMessage(error, "staff.changeError")
+      : data?.error === "cannot_disable_last_admin" ? t("staff.lastAdmin")
+        : data?.error === "cannot_change_own_access" ? t("staff.selfChange")
+          : t("staff.changeError");
+    return showMessage($("#staff-message"), message, "error");
+  }
+  await loadStaff();
 });
 
 $("#new-order-button").addEventListener("click", () => { resetOrder(); $("#customer-name").focus(); });
@@ -394,14 +601,20 @@ $("#submit-order").addEventListener("click", async () => {
   const { data, error } = await supabase.functions.invoke("create-order", {
     body: { items, customer_name: customerName, service_type: serviceType, table_number: tableNumber, notes: $("#cart-notes").value.trim(), estimated_prep_minutes: prepMinutes }
   });
-  button.disabled = false;
-  if (error) return showMessage($("#order-form-message"), await functionErrorMessage(error, "admin.create.error"), "error");
-  if (!data?.order) return showMessage($("#order-form-message"), data?.error || t("admin.create.error"), "error");
-  openReceipt(data.order, data.access_code);
+  if (error) {
+    button.disabled = false;
+    return showMessage($("#order-form-message"), await functionErrorMessage(error, "admin.create.error"), "error");
+  }
+  if (!data?.order) {
+    button.disabled = false;
+    return showMessage($("#order-form-message"), data?.error || t("admin.create.error"), "error");
+  }
   resetOrder();
   $("#order-filter").value = "active";
   recentlyCreatedOrderId = data.order.id;
   showMessage($("#dashboard-message"), `${t("admin.create.success")} #${String(data.order.order_number).padStart(3, "0")}`, "success");
+  try { await openReceipt(data.order, data.access_code); }
+  finally { button.disabled = false; }
   await loadOrders();
 });
 

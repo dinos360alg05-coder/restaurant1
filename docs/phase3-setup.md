@@ -48,6 +48,19 @@ Supabase provides the function URL, Auth verification, and service-side environm
 
 If a function returns `staff_access_required`, verify that this signed-in account's Auth UUID is the same UUID listed as active in `public.staff_members`. If order creation returns a configuration error, check that `TRACKING_CODE_PEPPER` was saved in the development project's Edge Function secrets and redeploy `create-order`.
 
+## Admin staff management
+
+Run `supabase/migrations/20261024070000_staff_admin_management.sql` in the Supabase SQL Editor. The migration adds an admin flag and presence timestamp, and promotes the owner staff UUID provided during setup (`b8c39a9f-308c-4278-b6db-7180105d3e32`). If SQL reports that the bootstrap user is missing, replace that UUID with the correct active `auth.users.id` and run the migration again.
+
+Deploy the two new functions to the same project:
+
+```sh
+npx supabase functions deploy manage-staff --project-ref oqlepcniuixoplvwsinr --use-api
+npx supabase functions deploy staff-presence --project-ref oqlepcniuixoplvwsinr --use-api
+```
+
+The owner account can then add employees from the new section in `admin.html`. Accounts are created with a temporary password, and disabling an employee preserves their Auth identity and order history while removing staff access. Online status means a heartbeat was received within the last 90 seconds.
+
 ## Customer tracking
 
 The private tracking flow is implemented in source. Anonymous sign-in must be enabled in **Authentication → Sign In / Providers → Anonymous Sign-Ins**. Public email sign-up can remain disabled. Apply `supabase/migrations/20261024020000_customer_tracking.sql` in the Supabase SQL Editor after the existing schema and order-creation fix migrations.

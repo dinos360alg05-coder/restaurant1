@@ -18,6 +18,7 @@
   <header class="site-header">
     <div class="topbar">
       <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">R</span><span data-i18n="brand">مكتب المطعم</span></a>
+      <button id="admin-portal-button" class="button button-secondary admin-portal-trigger" type="button" aria-label="دخول الأدمن" title="دخول الأدمن"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15v2m-6 4h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2Z"/><path d="M8 9V6a4 4 0 0 1 8 0v3"/></svg><span data-i18n="staff.adminPortal">الأدمن</span></button>
       <nav class="site-nav" aria-label="Main navigation">
         <a href="index.html" data-i18n="navigation.homeTab">الرئيسية</a>
         <a href="admin.html" aria-current="page" data-i18n="navigation.cashierTab">لوحة الكاشير</a>
@@ -29,6 +30,24 @@
       </div>
     </div>
   </header>
+  <dialog id="admin-access-dialog" class="order-dialog admin-access-dialog" aria-labelledby="admin-access-title">
+    <section id="admin-access-login">
+      <form id="admin-access-form">
+        <div class="panel-heading"><div><p class="eyebrow" data-i18n="staff.adminPortal">الأدمن</p><h2 id="admin-access-title" data-i18n="staff.loginTitle">دخول إدارة الموظفين</h2></div><button id="close-admin-access" class="icon-button" type="button" aria-label="إغلاق">×</button></div>
+        <p class="muted" data-i18n="staff.loginHint">أدخل بيانات حساب الأدمن لفتح إدارة الموظفين.</p>
+        <label for="admin-access-email"><span data-i18n="staff.username">اسم المستخدم (البريد الإلكتروني)</span><input id="admin-access-email" type="email" autocomplete="username" required></label>
+        <label for="admin-access-password"><span data-i18n="staff.password">كلمة المرور</span><input id="admin-access-password" type="password" autocomplete="current-password" required></label>
+        <p id="admin-access-message" class="form-message" role="status" aria-live="polite" hidden></p>
+        <div class="dialog-actions"><button id="submit-admin-access" class="button button-primary" type="submit" data-i18n="staff.login">دخول</button></div>
+      </form>
+    </section>
+    <section id="staff-management" class="staff-management" hidden>
+      <div class="panel-heading"><div><p class="eyebrow" data-i18n="staff.eyebrow">إدارة الوصول</p><h2 data-i18n="staff.title">حسابات الموظفين</h2><p class="muted" data-i18n="staff.hint">تظهر حالة الحساب وحالة الاتصال التقريبية خلال آخر 90 ثانية.</p></div><button id="close-staff-panel" class="icon-button" type="button" aria-label="إغلاق">×</button></div>
+      <div class="staff-panel-actions"><button id="refresh-staff" class="button button-secondary" type="button" data-i18n="staff.refresh">تحديث</button><button id="add-staff" class="button button-primary" type="button" data-i18n="staff.add">＋ إضافة موظف</button></div>
+      <p id="staff-message" class="form-message" role="status" aria-live="polite" hidden></p>
+      <div id="staff-list" class="staff-list" aria-live="polite"></div>
+    </section>
+  </dialog>
   <main class="app-shell">
     <section id="signin-panel" class="panel glass-panel auth-panel">
       <p class="eyebrow" data-i18n="admin.signin.eyebrow">دخول الموظفين</p>
@@ -96,6 +115,18 @@
         <p class="clear-orders-warning" data-i18n="admin.clearOrders.warning">سيتم حذف جميع الطلبات المحفوظة نهائيًا، بما فيها الطلبات النشطة والسابقة. ستُلغى رموز تتبعها ويبدأ ترقيم الطلبات من جديد. لا يمكن التراجع عن هذه العملية.</p>
         <p id="clear-orders-message" class="form-message" role="status" aria-live="polite" hidden></p>
         <div class="dialog-actions"><button id="cancel-clear-orders" class="button button-secondary" type="submit" value="cancel" data-i18n="admin.clearOrders.cancel">إلغاء</button><button id="confirm-clear-orders" class="button button-danger" type="button" data-i18n="admin.clearOrders.confirm">نعم، امسح جميع الطلبات</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="staff-dialog" class="order-dialog staff-dialog" aria-labelledby="staff-dialog-title">
+      <form id="staff-form">
+        <div class="panel-heading"><div><p class="eyebrow" data-i18n="staff.dialog.eyebrow">حساب موظف جديد</p><h2 id="staff-dialog-title" data-i18n="staff.dialog.title">إضافة موظف</h2></div><button id="close-staff-dialog" class="icon-button" type="button" aria-label="إغلاق">×</button></div>
+        <label for="staff-display-name"><span data-i18n="staff.dialog.name">اسم الموظف</span><input id="staff-display-name" maxlength="120" autocomplete="name" required></label>
+        <label for="staff-new-email"><span data-i18n="staff.dialog.email">البريد الإلكتروني</span><input id="staff-new-email" type="email" maxlength="254" autocomplete="off" required></label>
+        <label for="staff-new-password"><span data-i18n="staff.dialog.password">كلمة مرور مؤقتة (10 أحرف على الأقل)</span><input id="staff-new-password" type="password" minlength="10" maxlength="72" autocomplete="new-password" required></label>
+        <p class="muted" data-i18n="staff.dialog.note">أعط الموظف كلمة المرور المؤقتة بطريقة آمنة، ويمكنه تغييرها لاحقاً.</p>
+        <p id="staff-form-message" class="form-message" role="status" aria-live="polite" hidden></p>
+        <div class="dialog-actions"><button id="cancel-staff-dialog" class="button button-secondary" type="button" data-i18n="staff.dialog.cancel">إلغاء</button><button id="save-staff" class="button button-primary" type="submit" data-i18n="staff.dialog.submit">إنشاء الحساب</button></div>
       </form>
     </dialog>
 

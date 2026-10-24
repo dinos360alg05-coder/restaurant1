@@ -14,3 +14,9 @@ verify_jwt = true
 
 [functions.clear-orders]
 verify_jwt = true
+
+[functions.manage-staff]
+verify_jwt = true
+
+[functions.staff-presence]
+verify_jwt = true
